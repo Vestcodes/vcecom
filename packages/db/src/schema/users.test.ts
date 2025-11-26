@@ -17,9 +17,6 @@ describe("Users Schema", () => {
 
   afterEach(async () => {
     await db.delete(users);
-  });
-
-  afterEach(async () => {
     await closeTestDb(pool);
   });
 

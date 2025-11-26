@@ -375,4 +375,3 @@ describe("Product Catalog Integration Tests", () => {
     });
   });
 });
-

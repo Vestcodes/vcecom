@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeTestDb, createTestDb } from "../test-utils/db.js";
 import {
@@ -26,9 +26,6 @@ describe("Addresses Schema", () => {
     await db.delete(addresses);
     await db.delete(customers);
     await db.delete(users);
-  });
-
-  afterEach(async () => {
     await closeTestDb(pool);
   });
 
