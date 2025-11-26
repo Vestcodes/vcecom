@@ -1,14 +1,14 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeTestDb, createTestDb } from "../test-utils/db.js";
+import { closeTestDb, createTestDb } from "../test-utils/db";
 import {
   randomEmail,
   randomPhone,
   randomPinCode,
-} from "../test-utils/helpers.js";
-import { addresses } from "./addresses.js";
-import { customers } from "./customers.js";
-import { users } from "./users.js";
+} from "../test-utils/helpers";
+import { addresses } from "./addresses";
+import { customers } from "./customers";
+import { users } from "./users";
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "";

@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeTestDb, createTestDb } from "../test-utils/db.js";
-import { categories } from "./categories.js";
-import { productImages } from "./product-images.js";
-import { productVariants } from "./product-variants.js";
-import { products } from "./products.js";
+import { closeTestDb, createTestDb } from "../test-utils/db";
+import { categories } from "./categories";
+import { productImages } from "./product-images";
+import { productVariants } from "./product-variants";
+import { products } from "./products";
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "";

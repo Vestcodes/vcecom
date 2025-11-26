@@ -1,7 +1,7 @@
 import { eq, isNull } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeTestDb, createTestDb } from "../test-utils/db.js";
-import { categories } from "./categories.js";
+import { closeTestDb, createTestDb } from "../test-utils/db";
+import { categories } from "./categories";
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "";

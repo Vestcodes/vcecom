@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeTestDb, createTestDb } from "../test-utils/db.js";
-import { productVariants } from "./product-variants.js";
-import { products } from "./products.js";
+import { closeTestDb, createTestDb } from "../test-utils/db";
+import { productVariants } from "./product-variants";
+import { products } from "./products";
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "";
