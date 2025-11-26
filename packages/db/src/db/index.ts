@@ -11,4 +11,15 @@ export const db = drizzle(pool, { schema });
 export type Database = typeof db;
 
 // Re-export commonly used drizzle functions
-export { and, asc, desc, eq, not, or, sql } from "drizzle-orm";
+export {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  ilike,
+  lte,
+  not,
+  or,
+  sql,
+} from "drizzle-orm";

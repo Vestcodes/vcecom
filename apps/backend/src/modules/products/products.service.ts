@@ -3,7 +3,23 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { and, categories, db, desc, eq, products } from "@vcecom/db";
+import {
+  and,
+  asc,
+  categories,
+  db,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lte,
+  notInArray,
+  or,
+  products,
+  productVariants,
+  sql,
+} from "@vcecom/db";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { QueryProductsDto } from "./dto/query-products.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -46,27 +62,112 @@ export class ProductsService {
   }
 
   /**
-   * Get all products with pagination and filters
+   * Get all products with pagination, search, and filters
    */
   async findAll(query: QueryProductsDto) {
     const page = query.page || 1;
     const limit = query.limit || 10;
     const offset = (page - 1) * limit;
 
-    // Build where conditions
-    let whereCondition:
-      | ReturnType<typeof eq>
-      | ReturnType<typeof and>
-      | undefined;
-    if (query.status && query.categoryId) {
-      whereCondition = and(
-        eq(products.status, query.status),
-        eq(products.categoryId, query.categoryId),
-      );
-    } else if (query.status) {
-      whereCondition = eq(products.status, query.status);
-    } else if (query.categoryId) {
-      whereCondition = eq(products.categoryId, query.categoryId);
+    // Build where conditions array
+    const conditions: ReturnType<
+      | typeof eq
+      | typeof and
+      | typeof or
+      | typeof gte
+      | typeof lte
+      | typeof ilike
+    >[] = [];
+
+    // Search condition (title, description, or SKU)
+    if (query.search) {
+      const searchPattern = `%${query.search}%`;
+      const searchConditions = [
+        ilike(products.title, searchPattern),
+        ilike(products.description, searchPattern),
+      ];
+
+      // Search in variants SKU if search term looks like SKU
+      if (query.search.length <= 50) {
+        // Get product IDs that have matching SKUs
+        const variantsWithMatchingSku = await db
+          .select({ productId: productVariants.productId })
+          .from(productVariants)
+          .where(ilike(productVariants.sku, searchPattern));
+
+        if (variantsWithMatchingSku.length > 0) {
+          const productIds = variantsWithMatchingSku.map((v) => v.productId);
+          searchConditions.push(
+            sql`${products.id} = ANY(${sql.raw(`ARRAY[${productIds.map(() => "?").join(",")}]`)})` as any,
+          );
+        }
+      }
+
+      conditions.push(or(...searchConditions) as any);
+    }
+
+    // Status filter
+    if (query.status) {
+      conditions.push(eq(products.status, query.status));
+    }
+
+    // Category filter
+    if (query.categoryId) {
+      conditions.push(eq(products.categoryId, query.categoryId));
+    }
+
+    // Price range filters
+    if (query.minPrice !== undefined) {
+      conditions.push(gte(products.price, query.minPrice));
+    }
+    if (query.maxPrice !== undefined) {
+      conditions.push(lte(products.price, query.maxPrice));
+    }
+
+    // Availability filter (in stock/out of stock)
+    if (query.inStock !== undefined) {
+      // Get products with at least one variant with inventory > 0
+      const productsInStock = await db
+        .selectDistinct({ productId: productVariants.productId })
+        .from(productVariants)
+        .where(sql`${productVariants.inventory} > 0`);
+
+      const productIdsInStock = productsInStock.map((p) => p.productId);
+
+      if (query.inStock) {
+        // Filter to only products in stock
+        if (productIdsInStock.length > 0) {
+          const inStockConditions = productIdsInStock.map((id) =>
+            eq(products.id, id),
+          );
+          conditions.push(or(...inStockConditions) as any);
+        } else {
+          // No products in stock, return empty result
+          return {
+            data: [],
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          };
+        }
+      } else {
+        // Filter to only products out of stock (not in the in-stock list)
+        if (productIdsInStock.length > 0) {
+          // Products that are NOT in the in-stock list
+          const notInStockConditions = productIdsInStock.map(
+            (id) => sql`${products.id} != ${id}` as any,
+          );
+          conditions.push(and(...notInStockConditions) as any);
+        }
+        // If no products are in stock, all products are out of stock, so no additional filter needed
+      }
+    }
+
+    // Build final where condition
+    let whereCondition: ReturnType<typeof and> | undefined;
+    if (conditions.length > 0) {
+      whereCondition = and(...conditions) as ReturnType<typeof and>;
     }
 
     // Get total count
@@ -77,6 +178,24 @@ export class ProductsService {
     const allProductsForCount = await countQuery;
     const total = allProductsForCount.length;
 
+    // Build sort order
+    const sortBy = query.sortBy || "date";
+    const sortOrder = query.sortOrder || "desc";
+    let orderBy;
+    if (sortBy === "price") {
+      orderBy =
+        sortOrder === "asc" ? asc(products.price) : desc(products.price);
+    } else if (sortBy === "name") {
+      orderBy =
+        sortOrder === "asc" ? asc(products.title) : desc(products.title);
+    } else {
+      // date (default)
+      orderBy =
+        sortOrder === "asc"
+          ? asc(products.createdAt)
+          : desc(products.createdAt);
+    }
+
     // Get products
     const productsQuery = db.select().from(products);
     if (whereCondition) {
@@ -85,7 +204,7 @@ export class ProductsService {
     const allProducts = await productsQuery
       .limit(limit)
       .offset(offset)
-      .orderBy(desc(products.createdAt));
+      .orderBy(orderBy);
 
     const totalPages = Math.ceil(total / limit);
 

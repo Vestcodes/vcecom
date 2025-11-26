@@ -16,3 +16,8 @@ apps/**/*.spec.*
 apps/**/*.test.*
 packages/**/*.spec.*
 packages/**/*.test.*
+packages/db/**/*.test.ts
+**/*.test.ts
+**/*.spec.ts
+**/**/*.test.ts
+**/**/*.spec.ts

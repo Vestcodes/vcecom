@@ -41,9 +41,9 @@ export class ProductsController {
   @Public()
   @Get()
   @ApiOperation({
-    summary: "Get all products",
+    summary: "Get all products with search and filters",
     description:
-      "Retrieve a paginated list of products with optional filters (public endpoint)",
+      "Retrieve a paginated list of products with search, filters, and sorting (public endpoint). Supports full-text search in title, description, and SKU.",
   })
   @ApiQuery({
     name: "page",
@@ -58,6 +58,12 @@ export class ProductsController {
     description: "Items per page (default: 10, max: 100)",
   })
   @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "Search query (searches in title, description, and SKU)",
+  })
+  @ApiQuery({
     name: "status",
     required: false,
     enum: ["draft", "active", "archived"],
@@ -68,6 +74,37 @@ export class ProductsController {
     required: false,
     type: String,
     description: "Filter by category ID",
+  })
+  @ApiQuery({
+    name: "minPrice",
+    required: false,
+    type: Number,
+    description: "Minimum price filter (INR)",
+  })
+  @ApiQuery({
+    name: "maxPrice",
+    required: false,
+    type: Number,
+    description: "Maximum price filter (INR)",
+  })
+  @ApiQuery({
+    name: "inStock",
+    required: false,
+    type: Boolean,
+    description:
+      "Filter by availability (true = in stock, false = out of stock)",
+  })
+  @ApiQuery({
+    name: "sortBy",
+    required: false,
+    enum: ["price", "name", "date"],
+    description: "Sort field (default: date)",
+  })
+  @ApiQuery({
+    name: "sortOrder",
+    required: false,
+    enum: ["asc", "desc"],
+    description: "Sort order (default: desc)",
   })
   @ApiOkResponse({
     description: "List of products retrieved successfully",
