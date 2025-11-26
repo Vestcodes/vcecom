@@ -223,7 +223,7 @@ export class ProductsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: allProducts,
+      data: allProducts.map((product) => this.enrichProductWithGst(product)),
       total: Number(total),
       page,
       limit,
@@ -300,7 +300,7 @@ export class ProductsService {
       .where(eq(products.id, id))
       .returning();
 
-    return updated;
+    return this.enrichProductWithGst(updated);
   }
 
   /**
@@ -341,6 +341,7 @@ export class ProductsService {
       gstAmount: Number(gstAmount.toFixed(2)),
       priceExcludingGst: Number(product.price.toFixed(2)),
       priceIncludingGst: Number(priceIncludingGst.toFixed(2)),
+      hsnCode: product.hsnCode || null,
     };
   }
 }
