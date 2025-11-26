@@ -1,8 +1,8 @@
 // Export database connection utilities
-export * from "./db/index.js";
+export * from "./db/index";
 
 // Export all schemas
-export * from "./schema/index.js";
+export * from "./schema/index";
 
 // Export types
-export type * from "./types.js";
+export type * from "./types";

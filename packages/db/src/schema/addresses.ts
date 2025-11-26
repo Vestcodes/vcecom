@@ -7,7 +7,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { customers } from "./customers.js";
+import { customers } from "./customers";
 
 export const addressTypeEnum = pgEnum("address_type", [
   "shipping",

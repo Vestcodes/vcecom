@@ -7,8 +7,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { productVariants } from "./product-variants.js";
-import { products } from "./products.js";
+import { productVariants } from "./product-variants";
+import { products } from "./products";
 
 export const productImages = pgTable(
   "product_images",
