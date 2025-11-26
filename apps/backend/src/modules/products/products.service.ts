@@ -245,7 +245,7 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return product;
+    return this.enrichProductWithGst(product);
   }
 
   /**
@@ -322,5 +322,25 @@ export class ProductsService {
     await db.delete(products).where(eq(products.id, id));
 
     return { message: "Product deleted successfully" };
+  }
+
+  /**
+   * Enrich product with GST calculations
+   * @param product - Product from database
+   * @returns Product with GST calculations added
+   */
+  private enrichProductWithGst(product: typeof products.$inferSelect) {
+    const gstAmount = calculateGstAmount(product.price, product.gstRate);
+    const priceIncludingGst = calculatePriceWithGst(
+      product.price,
+      product.gstRate,
+    );
+
+    return {
+      ...product,
+      gstAmount: Number(gstAmount.toFixed(2)),
+      priceExcludingGst: Number(product.price.toFixed(2)),
+      priceIncludingGst: Number(priceIncludingGst.toFixed(2)),
+    };
   }
 }

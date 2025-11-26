@@ -34,6 +34,7 @@ export const products = pgTable(
   (table) => ({
     categoryIdIdx: index("products_category_id_idx").on(table.categoryId),
     statusIdx: index("products_status_idx").on(table.status),
+    hsnCodeIdx: index("products_hsn_code_idx").on(table.hsnCode),
   }),
 );
 
