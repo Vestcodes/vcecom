@@ -20,6 +20,11 @@ import {
   productVariants,
   sql,
 } from "@vcecom/db";
+import {
+  calculateGstAmount,
+  calculatePriceWithGst,
+  isValidGstRate,
+} from "../../common/utils/gst.utils";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { QueryProductsDto } from "./dto/query-products.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -45,6 +50,14 @@ export class ProductsService {
       }
     }
 
+    // Validate GST rate
+    const gstRate = createProductDto.gstRate ?? 0;
+    if (!isValidGstRate(gstRate)) {
+      throw new BadRequestException(
+        `Invalid GST rate. Valid rates are: 0%, 5%, 12%, 18%, 28%`,
+      );
+    }
+
     // Create product
     const [newProduct] = await db
       .insert(products)
@@ -52,13 +65,14 @@ export class ProductsService {
         title: createProductDto.title,
         description: createProductDto.description || null,
         price: createProductDto.price,
-        gstRate: createProductDto.gstRate ?? 0,
+        gstRate,
+        hsnCode: createProductDto.hsnCode || null,
         status: createProductDto.status || "draft",
         categoryId: createProductDto.categoryId || null,
       })
       .returning();
 
-    return newProduct;
+    return this.enrichProductWithGst(newProduct);
   }
 
   /**

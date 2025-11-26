@@ -43,17 +43,28 @@ export class CreateProductDto {
   price: number;
 
   @ApiProperty({
-    description: "GST rate percentage",
+    description: "GST rate percentage (valid rates: 0%, 5%, 12%, 18%, 28%)",
     example: 18,
     default: 0,
-    minimum: 0,
-    maximum: 100,
+    enum: [0, 5, 12, 18, 28],
   })
   @IsOptional()
   @IsNumber({}, { message: "GST rate must be a number" })
-  @Min(0, { message: "GST rate must be greater than or equal to 0" })
-  @Max(100, { message: "GST rate must be less than or equal to 100" })
+  @IsIn([0, 5, 12, 18, 28], {
+    message: "GST rate must be one of: 0%, 5%, 12%, 18%, 28%",
+  })
   gstRate?: number;
+
+  @ApiProperty({
+    description: "HSN (Harmonized System of Nomenclature) code",
+    example: "8518.12.00",
+    required: false,
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString({ message: "HSN code must be a string" })
+  @MaxLength(50, { message: "HSN code must not exceed 50 characters" })
+  hsnCode?: string;
 
   @ApiProperty({
     description: "Product status",

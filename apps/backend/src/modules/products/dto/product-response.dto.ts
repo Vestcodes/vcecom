@@ -33,6 +33,31 @@ export class ProductResponseDto {
   gstRate: number;
 
   @ApiProperty({
+    description: "GST amount (calculated from price)",
+    example: 540.0,
+  })
+  gstAmount: number;
+
+  @ApiProperty({
+    description: "Price excluding GST",
+    example: 3000.0,
+  })
+  priceExcludingGst: number;
+
+  @ApiProperty({
+    description: "Price including GST",
+    example: 3540.0,
+  })
+  priceIncludingGst: number;
+
+  @ApiProperty({
+    description: "HSN (Harmonized System of Nomenclature) code",
+    example: "8518.12.00",
+    nullable: true,
+  })
+  hsnCode: string | null;
+
+  @ApiProperty({
     description: "Product status",
     example: "active",
     enum: ["draft", "active", "archived"],
