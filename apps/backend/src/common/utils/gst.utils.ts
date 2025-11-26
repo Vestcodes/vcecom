@@ -82,3 +82,94 @@ export function calculateGstFromInclusivePrice(
 export function formatGstRate(rate: number): string {
   return `${rate}%`;
 }
+
+/**
+ * Calculate CGST and SGST (for same state transactions)
+ * CGST = SGST = GST Rate / 2
+ * @param amount - Base amount
+ * @param gstRate - GST rate percentage
+ * @returns Object with CGST and SGST amounts
+ */
+export function calculateCgstSgst(
+  amount: number,
+  gstRate: number,
+): {
+  cgst: number;
+  sgst: number;
+} {
+  const totalGst = calculateGstAmount(amount, gstRate);
+  return {
+    cgst: Number((totalGst / 2).toFixed(2)),
+    sgst: Number((totalGst / 2).toFixed(2)),
+  };
+}
+
+/**
+ * Calculate IGST (for inter-state transactions)
+ * IGST = GST Rate (full amount)
+ * @param amount - Base amount
+ * @param gstRate - GST rate percentage
+ * @returns IGST amount
+ */
+export function calculateIgst(amount: number, gstRate: number): number {
+  return Number(calculateGstAmount(amount, gstRate).toFixed(2));
+}
+
+/**
+ * Determine if transaction is intra-state (same state) or inter-state
+ * @param sellerState - Seller's state
+ * @param buyerState - Buyer's state
+ * @returns true if same state (intra-state), false if different state (inter-state)
+ */
+export function isIntraStateTransaction(
+  sellerState: string,
+  buyerState: string,
+): boolean {
+  if (!sellerState || !buyerState) {
+    return false; // Default to inter-state if states are not provided
+  }
+  return sellerState.trim().toLowerCase() === buyerState.trim().toLowerCase();
+}
+
+/**
+ * Calculate GST breakdown (CGST/SGST for intra-state, IGST for inter-state)
+ * @param amount - Base amount
+ * @param gstRate - GST rate percentage
+ * @param sellerState - Seller's state
+ * @param buyerState - Buyer's state
+ * @returns Object with GST breakdown
+ */
+export function calculateGstBreakdown(
+  amount: number,
+  gstRate: number,
+  sellerState: string,
+  buyerState: string,
+): {
+  cgst: number;
+  sgst: number;
+  igst: number;
+  totalGst: number;
+  isIntraState: boolean;
+} {
+  const isIntraState = isIntraStateTransaction(sellerState, buyerState);
+
+  if (isIntraState) {
+    const { cgst, sgst } = calculateCgstSgst(amount, gstRate);
+    return {
+      cgst,
+      sgst,
+      igst: 0,
+      totalGst: cgst + sgst,
+      isIntraState: true,
+    };
+  } else {
+    const igst = calculateIgst(amount, gstRate);
+    return {
+      cgst: 0,
+      sgst: 0,
+      igst,
+      totalGst: igst,
+      isIntraState: false,
+    };
+  }
+}

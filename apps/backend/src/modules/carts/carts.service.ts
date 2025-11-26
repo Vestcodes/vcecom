@@ -91,9 +91,45 @@ export class CartsService {
   }
 
   /**
-   * Recalculate cart totals
+   * Get seller state (default to Maharashtra for now)
+   * TODO: This should come from business configuration
    */
-  private async recalculateCartTotals(cartId: string) {
+  private getSellerState(): string {
+    return process.env.SELLER_STATE || "Maharashtra";
+  }
+
+  /**
+   * Get buyer state from customer's default address
+   */
+  private async getBuyerState(
+    customerId: string | null,
+  ): Promise<string | null> {
+    if (!customerId) {
+      return null;
+    }
+
+    // Get default shipping address
+    const [defaultAddress] = await db
+      .select({ state: addresses.state })
+      .from(addresses)
+      .where(
+        and(
+          eq(addresses.customerId, customerId),
+          eq(addresses.isDefault, true),
+        ),
+      )
+      .limit(1);
+
+    return defaultAddress?.state || null;
+  }
+
+  /**
+   * Recalculate cart totals with proper CGST/SGST/IGST calculation
+   */
+  private async recalculateCartTotals(
+    cartId: string,
+    customerId: string | null = null,
+  ) {
     // Get all cart items with product prices
     const items = await db
       .select({
@@ -118,28 +154,56 @@ export class CartsService {
 
     // Get GST rates from products
     const productIds = [...new Set(items.map((item) => item.productId))];
-    const productGstRates = await db
-      .select({
-        id: products.id,
-        gstRate: products.gstRate,
-      })
-      .from(products)
-      .where(
-        productIds.length > 0
-          ? // @ts-expect-error - inArray type issue
-            require("@vcecom/db").inArray(products.id, productIds)
-          : undefined,
-      );
+    let productGstRates: Array<{ id: string; gstRate: number }> = [];
+
+    if (productIds.length > 0) {
+      productGstRates = await db
+        .select({
+          id: products.id,
+          gstRate: products.gstRate,
+        })
+        .from(products)
+        .where(inArray(products.id, productIds));
+    }
 
     const gstRateMap = new Map(productGstRates.map((p) => [p.id, p.gstRate]));
 
-    // Calculate GST amount (simplified - using average GST rate for now)
-    // Phase 3.4 will implement proper CGST/SGST/IGST calculation
-    const totalGstAmount = items.reduce((sum, item) => {
-      const gstRate = gstRateMap.get(item.productId) || 0;
-      return sum + (item.price * item.quantity * gstRate) / 100;
-    }, 0);
+    // Get buyer state
+    const buyerState = await this.getBuyerState(customerId);
+    const sellerState = this.getSellerState();
 
+    // Calculate GST breakdown per item
+    let totalCgst = 0;
+    let totalSgst = 0;
+    let totalIgst = 0;
+
+    for (const item of items) {
+      const gstRate = gstRateMap.get(item.productId) || 0;
+      const itemAmount = item.price * item.quantity;
+
+      if (gstRate > 0 && buyerState) {
+        const breakdown = calculateGstBreakdown(
+          itemAmount,
+          gstRate,
+          sellerState,
+          buyerState,
+        );
+        totalCgst += breakdown.cgst;
+        totalSgst += breakdown.sgst;
+        totalIgst += breakdown.igst;
+      } else if (gstRate > 0) {
+        // No buyer state - use IGST (inter-state)
+        const breakdown = calculateGstBreakdown(
+          itemAmount,
+          gstRate,
+          sellerState,
+          "", // Empty buyer state triggers inter-state
+        );
+        totalIgst += breakdown.igst;
+      }
+    }
+
+    const totalGstAmount = totalCgst + totalSgst + totalIgst;
     const total = subtotal + totalGstAmount;
 
     // Update cart totals
@@ -152,7 +216,14 @@ export class CartsService {
       })
       .where(eq(carts.id, cartId));
 
-    return { subtotal, gstAmount: totalGstAmount, total };
+    return {
+      subtotal,
+      gstAmount: totalGstAmount,
+      cgst: totalCgst,
+      sgst: totalSgst,
+      igst: totalIgst,
+      total,
+    };
   }
 
   /**
@@ -321,7 +392,7 @@ export class CartsService {
       .where(eq(cartItems.id, itemId));
 
     // Recalculate totals
-    await this.recalculateCartTotals(cart.id);
+    await this.recalculateCartTotals(cart.id, customerId);
 
     return this.getCart(userId, sessionId);
   }
@@ -356,7 +427,7 @@ export class CartsService {
     await db.delete(cartItems).where(eq(cartItems.id, itemId));
 
     // Recalculate totals
-    await this.recalculateCartTotals(cart.id);
+    await this.recalculateCartTotals(cart.id, customerId);
 
     return this.getCart(userId, sessionId);
   }
@@ -452,6 +523,6 @@ export class CartsService {
     await db.delete(carts).where(eq(carts.id, guestCart.id));
 
     // Recalculate customer cart totals
-    await this.recalculateCartTotals(customerCart.id);
+    await this.recalculateCartTotals(customerCart.id, customerId);
   }
 }
