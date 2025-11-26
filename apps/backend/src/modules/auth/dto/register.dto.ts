@@ -1,4 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+} from "class-validator";
 
 export class RegisterDto {
   @ApiProperty({
@@ -6,6 +14,8 @@ export class RegisterDto {
     example: "user@example.com",
     type: String,
   })
+  @IsNotEmpty({ message: "Email is required" })
+  @IsEmail({}, { message: "Email must be a valid email address" })
   email: string;
 
   @ApiProperty({
@@ -14,6 +24,9 @@ export class RegisterDto {
     type: String,
     minLength: 8,
   })
+  @IsNotEmpty({ message: "Password is required" })
+  @IsString({ message: "Password must be a string" })
+  @MinLength(8, { message: "Password must be at least 8 characters long" })
   password: string;
 
   @ApiProperty({
@@ -22,6 +35,10 @@ export class RegisterDto {
     enum: ["admin", "customer"],
     required: false,
     default: "customer",
+  })
+  @IsOptional()
+  @IsEnum(["admin", "customer"], {
+    message: "Role must be either 'admin' or 'customer'",
   })
   role?: "admin" | "customer";
 }

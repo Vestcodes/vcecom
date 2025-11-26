@@ -10,6 +10,18 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const reflector = app.get(Reflector);
 
+  // Enable validation globally
+  app.useGlobalPipes(
+    new (await import("@nestjs/common")).ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+
   // Create custom JWT guard that respects @Public() decorator
   const jwtGuard = new JwtAuthGuard();
   const rolesGuard = new RolesGuard(reflector);
