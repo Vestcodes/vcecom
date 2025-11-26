@@ -18,8 +18,10 @@ export {
   eq,
   gte,
   ilike,
+  inArray,
   lte,
   not,
+  notInArray,
   or,
   sql,
 } from "drizzle-orm";
