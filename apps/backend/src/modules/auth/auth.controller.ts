@@ -1,18 +1,30 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Request,
+} from "@nestjs/common";
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { Public } from "../../common/decorators/public.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import { AuthService } from "./auth.service";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { UserProfileDto } from "./dto/user-profile.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -90,5 +102,106 @@ export class AuthController {
     @Body() refreshTokenDto: RefreshTokenDto,
   ): Promise<AuthResponseDto> {
     return this.authService.refreshToken(refreshTokenDto.refresh_token);
+  }
+
+  @Get("profile")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Get current user profile",
+    description: "Get the profile of the currently authenticated user",
+  })
+  @ApiOkResponse({
+    description: "User profile retrieved successfully",
+    type: UserProfileDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: "Authentication required",
+  })
+  async getProfile(@Request() req): Promise<UserProfileDto> {
+    return {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+    };
+  }
+
+  @Get("admin-only")
+  @Roles("admin")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Admin-only endpoint",
+    description: "This endpoint is only accessible to users with admin role",
+  })
+  @ApiOkResponse({
+    description: "Admin access granted",
+    schema: {
+      type: "object",
+      properties: {
+        message: {
+          type: "string",
+          example: "Welcome, admin!",
+        },
+        user: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            email: { type: "string" },
+            role: { type: "string" },
+          },
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: "Authentication required",
+  })
+  @ApiForbiddenResponse({
+    description: "Access denied. Admin role required.",
+  })
+  async adminOnly(@Request() req) {
+    return {
+      message: "Welcome, admin!",
+      user: req.user,
+    };
+  }
+
+  @Get("customer-only")
+  @Roles("customer")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Customer-only endpoint",
+    description: "This endpoint is only accessible to users with customer role",
+  })
+  @ApiOkResponse({
+    description: "Customer access granted",
+    schema: {
+      type: "object",
+      properties: {
+        message: {
+          type: "string",
+          example: "Welcome, customer!",
+        },
+        user: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            email: { type: "string" },
+            role: { type: "string" },
+          },
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: "Authentication required",
+  })
+  @ApiForbiddenResponse({
+    description: "Access denied. Customer role required.",
+  })
+  async customerOnly(@Request() req) {
+    return {
+      message: "Welcome, customer!",
+      user: req.user,
+    };
   }
 }
