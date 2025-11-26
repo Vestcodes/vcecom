@@ -23,6 +23,7 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^8.0.7",
     "@vcecom/db": "workspace:*",
     "bcrypt": "^5.1.1",
     "passport": "^0.7.0",

@@ -1,16 +1,38 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import {
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from "@nestjs/swagger";
 import { Public } from "../../common/decorators/public.decorator";
 import { AuthService } from "./auth.service";
+import { AuthResponseDto } from "./dto/auth-response.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Public()
   @Post("register")
-  async register(@Body() registerDto: RegisterDto) {
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: "Register a new user",
+    description: "Create a new user account with email and password",
+  })
+  @ApiCreatedResponse({
+    description: "User successfully registered",
+    type: AuthResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Invalid input or user already exists",
+  })
+  async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(
       registerDto.email,
       registerDto.password,
@@ -20,7 +42,22 @@ export class AuthController {
 
   @Public()
   @Post("login")
-  async login(@Body() loginDto: LoginDto) {
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Login user",
+    description: "Authenticate user with email and password, receive JWT token",
+  })
+  @ApiOkResponse({
+    description: "User successfully authenticated",
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: "Invalid credentials",
+  })
+  @ApiBadRequestResponse({
+    description: "Invalid input",
+  })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.authService.validateUser(
       loginDto.email,
       loginDto.password,
