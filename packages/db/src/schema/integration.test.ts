@@ -1,11 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeTestDb, createTestDb } from "../test-utils/db";
-import {
-  randomEmail,
-  randomPhone,
-  randomPinCode,
-} from "../test-utils/helpers";
+import { randomEmail, randomPhone, randomPinCode } from "../test-utils/helpers";
 import { addresses } from "./addresses";
 import { customers } from "./customers";
 import { users } from "./users";
