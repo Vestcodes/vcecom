@@ -1,6 +1,6 @@
 // packages/db/src/schema/products.ts
 
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   index,
   pgEnum,
@@ -8,7 +8,6 @@ import {
   real,
   text,
   timestamp,
-  tsvector, // <-- Keep only the functions you use here
   uuid,
 } from "drizzle-orm/pg-core";
 import { categories } from "./categories";
@@ -21,7 +20,7 @@ export const productStatusEnum = pgEnum("product_status", [
 
 export const products = pgTable(
   "products",
-  (table) => ({
+  (_table) => ({
     id: uuid("id").defaultRandom().primaryKey(),
     title: text("title").notNull(),
     description: text("description"),
