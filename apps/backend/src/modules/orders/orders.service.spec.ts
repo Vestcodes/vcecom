@@ -21,6 +21,7 @@ import {
 } from "@vcecom/db";
 import { CartsService } from "../carts/carts.service";
 import { DiscountsService } from "../discounts/discounts.service";
+import { InventoryStore } from "../redis/stores/inventory.store";
 import { OrdersService } from "./orders.service";
 
 // Mock dependencies
@@ -53,6 +54,7 @@ jest.mock("@vcecom/db", () => ({
 describe("OrdersService", () => {
   let service: OrdersService;
   let cartsService: CartsService;
+  let inventoryStore: InventoryStore;
 
   const mockUserId = "user-123";
   const mockCustomerId = "customer-123";
@@ -165,12 +167,23 @@ describe("OrdersService", () => {
             recordUsage: jest.fn(),
           },
         },
+        {
+          provide: InventoryStore,
+          useValue: {
+            getInventory: jest.fn(),
+            setInventory: jest.fn(),
+            getReservedQuantity: jest.fn(),
+            reserveInventory: jest.fn(),
+            releaseReservation: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<OrdersService>(OrdersService);
     cartsService = module.get<CartsService>(CartsService);
     discountsService = module.get<DiscountsService>(DiscountsService);
+    inventoryStore = module.get<InventoryStore>(InventoryStore);
   });
 
   afterEach(() => {
@@ -225,12 +238,27 @@ describe("OrdersService", () => {
       };
 
       // Mock generateOrderNumber
-      const mockOrdersChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
+      const mockLimitChainForOrderNumber1 = {
         limit: jest.fn().mockResolvedValue([]),
       };
+      const mockOrderByChainForOrderNumber1 = {
+        orderBy: jest.fn().mockReturnValue(mockLimitChainForOrderNumber1),
+      };
+      const mockWhereChainForOrderNumber1 = {
+        where: jest.fn().mockReturnValue(mockOrderByChainForOrderNumber1),
+      };
+      const mockFromChainForOrderNumber1 = {
+        from: jest.fn().mockReturnValue(mockWhereChainForOrderNumber1),
+      };
+      // db.select() should return an object with .from() method
+      const mockSelectForOrderNumber1 = mockFromChainForOrderNumber1;
+
+      // Mock InventoryStore for order creation
+      (inventoryStore.getInventory as jest.Mock).mockResolvedValue(10);
+      (inventoryStore.getReservedQuantity as jest.Mock).mockResolvedValue(0);
+      (inventoryStore.reserveInventory as jest.Mock).mockResolvedValue(true);
+      (inventoryStore.setInventory as jest.Mock).mockResolvedValue(undefined);
+      (inventoryStore.releaseReservation as jest.Mock).mockResolvedValue(undefined);
 
       // Mock insert order
       const mockInsertOrderChain = {
@@ -281,18 +309,33 @@ describe("OrdersService", () => {
         where: jest.fn().mockResolvedValue(undefined),
       };
 
+      // Mock select for updated variant inventory (after update)
+      const mockUpdatedVariantChain = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([{ inventory: 8 }]), // 10 - 2 = 8
+      };
+
       (db.select as jest.Mock)
         .mockReturnValueOnce(mockCustomerChain)
         .mockReturnValueOnce(mockShippingAddressChain)
         .mockReturnValueOnce(mockBillingAddressChain)
         .mockReturnValueOnce(mockCartItemsChain)
-        .mockReturnValueOnce(mockOrdersChain);
+        .mockReturnValueOnce(mockSelectForOrderNumber1)
+        .mockReturnValueOnce(mockUpdatedVariantChain); // For getting updated inventory after order creation
 
       (db.insert as jest.Mock)
         .mockReturnValueOnce(mockInsertOrderChain)
         .mockReturnValueOnce(mockInsertOrderItemsChain);
 
       (db.update as jest.Mock).mockReturnValue(mockUpdateInventoryChain);
+
+      // Mock InventoryStore
+      (inventoryStore.getInventory as jest.Mock).mockResolvedValue(10);
+      (inventoryStore.getReservedQuantity as jest.Mock).mockResolvedValue(0);
+      (inventoryStore.reserveInventory as jest.Mock).mockResolvedValue(true);
+      (inventoryStore.setInventory as jest.Mock).mockResolvedValue(undefined);
+      (inventoryStore.releaseReservation as jest.Mock).mockResolvedValue(undefined);
 
       // Mock discount service (no discount code)
       (discountsService.validateDiscount as jest.Mock).mockResolvedValue({
@@ -469,12 +512,21 @@ describe("OrdersService", () => {
         ]),
       };
 
-      const mockOrdersChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
+      // Mock generateOrderNumber for this test
+      const mockLimitChainForOrderNumber4 = {
         limit: jest.fn().mockResolvedValue([]),
       };
+      const mockOrderByChainForOrderNumber4 = {
+        orderBy: jest.fn().mockReturnValue(mockLimitChainForOrderNumber4),
+      };
+      const mockWhereChainForOrderNumber4 = {
+        where: jest.fn().mockReturnValue(mockOrderByChainForOrderNumber4),
+      };
+      const mockFromChainForOrderNumber4 = {
+        from: jest.fn().mockReturnValue(mockWhereChainForOrderNumber4),
+      };
+      // db.select() should return an object with .from() method
+      const mockSelectForOrderNumber4 = mockFromChainForOrderNumber4;
 
       const mockInsertOrderChain = {
         values: jest.fn().mockReturnThis(),
@@ -520,16 +572,48 @@ describe("OrdersService", () => {
         where: jest.fn().mockResolvedValue([]),
       };
 
+      // Mock select for updated variant inventory (after update)
+      const mockUpdatedVariantChain2 = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([{ inventory: 8 }]), // 10 - 2 = 8
+      };
+
+      // Mock generateOrderNumber for this test
+      const mockLimitChainForOrderNumber2 = {
+        limit: jest.fn().mockResolvedValue([]),
+      };
+      const mockOrderByChainForOrderNumber2 = {
+        orderBy: jest.fn().mockReturnValue(mockLimitChainForOrderNumber2),
+      };
+      const mockWhereChainForOrderNumber2 = {
+        where: jest.fn().mockReturnValue(mockOrderByChainForOrderNumber2),
+      };
+      const mockFromChainForOrderNumber2 = {
+        from: jest.fn().mockReturnValue(mockWhereChainForOrderNumber2),
+      };
+      // db.select() should return an object with .from() method
+      const mockSelectForOrderNumber2 = mockFromChainForOrderNumber2;
+
       (db.select as jest.Mock)
         .mockReturnValueOnce(mockCustomerChain)
         .mockReturnValueOnce(mockShippingAddressChain)
         .mockReturnValueOnce(mockBillingAddressChain)
         .mockReturnValueOnce(mockCartItemsChain)
-        .mockReturnValueOnce(mockOrdersChain);
+        .mockReturnValueOnce(mockSelectForOrderNumber2)
+        .mockReturnValueOnce(mockUpdatedVariantChain2); // For getting updated inventory after order creation
       (db.insert as jest.Mock)
         .mockReturnValueOnce(mockInsertOrderChain)
         .mockReturnValueOnce(mockInsertOrderItemsChain);
       (db.update as jest.Mock).mockReturnValue(mockUpdateVariantChain);
+
+      // Mock InventoryStore
+      (inventoryStore.getInventory as jest.Mock).mockResolvedValue(10);
+      (inventoryStore.getReservedQuantity as jest.Mock).mockResolvedValue(0);
+      (inventoryStore.reserveInventory as jest.Mock).mockResolvedValue(true);
+      (inventoryStore.setInventory as jest.Mock).mockResolvedValue(undefined);
+      (inventoryStore.releaseReservation as jest.Mock).mockResolvedValue(undefined);
+
       (cartsService.clearCart as jest.Mock).mockResolvedValue(undefined);
 
       const result = await service.create(
@@ -593,10 +677,18 @@ describe("OrdersService", () => {
         where: jest.fn().mockResolvedValue(mockOrderItems),
       };
 
+      // Mock shipping address query (called in findOne)
+      const mockShippingAddressChainForFindOne = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([mockShippingAddress]),
+      };
+
       (db.select as jest.Mock)
         .mockReturnValueOnce(mockCustomerChain)
         .mockReturnValueOnce(mockOrderChain)
-        .mockReturnValueOnce(mockOrderItemsChain);
+        .mockReturnValueOnce(mockOrderItemsChain)
+        .mockReturnValueOnce(mockShippingAddressChainForFindOne); // For shipping address in findOne
 
       const result = await service.findOne(mockUserId, mockOrderId);
 
@@ -630,16 +722,24 @@ describe("OrdersService", () => {
 
   describe("generateOrderNumber", () => {
     it("should generate order number with sequence when orders exist", async () => {
-      const mockOrdersChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
+      const mockLimitChain = {
         limit: jest.fn().mockResolvedValue([
           { orderNumber: "ORD-2025-000005" },
         ]),
       };
+      const mockOrderByChain = {
+        orderBy: jest.fn().mockReturnValue(mockLimitChain),
+      };
+      const mockWhereChain = {
+        where: jest.fn().mockReturnValue(mockOrderByChain),
+      };
+      const mockFromChain = {
+        from: jest.fn().mockReturnValue(mockWhereChain),
+      };
+      // db.select() should return an object with .from() method
+      const mockSelect = mockFromChain;
 
-      (db.select as jest.Mock).mockReturnValue(mockOrdersChain);
+      (db.select as jest.Mock).mockReturnValue(mockSelect);
 
       // Access private method via reflection
       const generateOrderNumber = (service as any).generateOrderNumber.bind(
