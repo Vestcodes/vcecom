@@ -18,10 +18,14 @@ import {
 import { calculateDiscount } from "../../common/utils/discount.utils";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
 import { DiscountsService } from "../discounts/discounts.service";
+import { SalesService } from "../sales/sales.service";
 
 @Injectable()
 export class CartsService {
-  constructor(private readonly discountsService: DiscountsService) {}
+  constructor(
+    private readonly discountsService: DiscountsService,
+    private readonly salesService: SalesService,
+  ) {}
   private readonly CART_EXPIRY_DAYS = 30; // Cart expires after 30 days
 
   /**
@@ -151,14 +155,19 @@ export class CartsService {
       )
       .where(eq(cartItems.cartId, cartId));
 
-    // Calculate subtotal
-    const subtotal = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
-
-    // Get GST rates from products
+    // Get sale prices for all products in cart
     const productIds = [...new Set(items.map((item) => item.productId))];
+    const salePrices =
+      await this.salesService.getEffectivePricesForProducts(productIds);
+
+    // Calculate subtotal using sale prices where applicable
+    const subtotal = items.reduce((sum, item) => {
+      const sale = salePrices.get(item.productId);
+      const effectivePrice = sale?.salePrice || item.price;
+      return sum + effectivePrice * item.quantity;
+    }, 0);
+
+    // Get GST rates from products (reuse productIds)
     let productGstRates: Array<{ id: string; gstRate: number }> = [];
 
     if (productIds.length > 0) {
@@ -184,7 +193,10 @@ export class CartsService {
 
     for (const item of items) {
       const gstRate = gstRateMap.get(item.productId) || 0;
-      const itemAmount = item.price * item.quantity;
+      // Use sale price if available, otherwise use regular price
+      const sale = salePrices.get(item.productId);
+      const effectivePrice = sale?.salePrice || item.price;
+      const itemAmount = effectivePrice * item.quantity;
 
       if (gstRate > 0 && buyerState) {
         const breakdown = calculateGstBreakdown(
@@ -233,14 +245,17 @@ export class CartsService {
         const productMap = new Map(productDetails.map((p) => [p.productId, p]));
 
         // Build cart items with product info for discount calculation
+        // Use sale prices for discount calculation (discounts apply after sale prices)
         const cartItemsForDiscount = items.map((item) => {
           const product = productMap.get(item.productId);
+          const sale = salePrices.get(item.productId);
+          const effectivePrice = sale?.salePrice || item.price;
           return {
             productId: item.productId,
             categoryId: product?.categoryId || null,
             collectionIds: [], // TODO: Add when product-collections junction table exists
             tagIds: [], // TODO: Add when product-tags junction table exists
-            price: item.price,
+            price: effectivePrice,
             quantity: item.quantity,
           };
         });
@@ -330,11 +345,28 @@ export class CartsService {
 
     const cart = await this.getOrCreateCart(customerId, sessionId);
 
-    // Get cart items
+    // Get cart items with product information
     const items = await db
-      .select()
+      .select({
+        id: cartItems.id,
+        productVariantId: cartItems.productVariantId,
+        quantity: cartItems.quantity,
+        price: cartItems.price,
+        createdAt: cartItems.createdAt,
+        updatedAt: cartItems.updatedAt,
+        productId: productVariants.productId,
+      })
       .from(cartItems)
+      .innerJoin(
+        productVariants,
+        eq(cartItems.productVariantId, productVariants.id),
+      )
       .where(eq(cartItems.cartId, cart.id));
+
+    // Get sale prices for products in cart
+    const productIds = [...new Set(items.map((item) => item.productId))];
+    const salePrices =
+      await this.salesService.getEffectivePricesForProducts(productIds);
 
     // Recalculate totals and get GST breakdown
     const gstBreakdown = await this.recalculateCartTotals(cart.id, customerId);
@@ -345,6 +377,22 @@ export class CartsService {
       .from(carts)
       .where(eq(carts.id, cart.id))
       .limit(1);
+
+    // Enrich items with sale price information
+    const enrichedItems = items.map((item) => {
+      const sale = salePrices.get(item.productId);
+      // Get regular price from product variant
+      return {
+        id: item.id,
+        productVariantId: item.productVariantId,
+        quantity: item.quantity,
+        price: item.price, // Price when added to cart
+        regularPrice: item.price, // For now, same as price (could fetch from product if needed)
+        salePrice: sale?.salePrice || null,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    });
 
     return {
       ...updatedCart,
@@ -357,7 +405,7 @@ export class CartsService {
         totalGst: gstBreakdown.gstAmount,
         isIntraState: gstBreakdown.cgst > 0 || gstBreakdown.sgst > 0,
       },
-      items,
+      items: enrichedItems,
     };
   }
 

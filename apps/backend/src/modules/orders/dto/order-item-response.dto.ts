@@ -26,10 +26,17 @@ export class OrderItemResponseDto {
   quantity: number;
 
   @ApiProperty({
-    description: "Price at time of order",
-    example: 999.99,
+    description: "Price at time of order (effective price - sale or regular)",
+    example: 799.99,
   })
   price: number;
+
+  @ApiProperty({
+    description: "Whether item was on sale at order time",
+    example: true,
+    required: false,
+  })
+  wasOnSale?: boolean;
 
   @ApiProperty({
     description: "GST rate percentage",

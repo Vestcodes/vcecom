@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProduct } from "@/hooks/use-product";
 import { ProductForm } from "./product-form";
+import { SaleList } from "./sale-list";
 
 type Props = {
   productId?: string;
@@ -91,7 +93,25 @@ export function ProductFormContent({ productId }: Props) {
           Back to Products
         </Button>
       </Link>
-      <ProductForm product={product} onSubmit={handleSuccess} />
+      {productId && product ? (
+        <Tabs defaultValue="product" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="product">Product Details</TabsTrigger>
+            <TabsTrigger value="sales">Sales</TabsTrigger>
+          </TabsList>
+          <TabsContent value="product">
+            <ProductForm product={product} onSubmit={handleSuccess} />
+          </TabsContent>
+          <TabsContent value="sales">
+            <SaleList
+              productId={productId}
+              productRegularPrice={product.regularPrice || product.price}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <ProductForm product={product} onSubmit={handleSuccess} />
+      )}
     </div>
   );
 }

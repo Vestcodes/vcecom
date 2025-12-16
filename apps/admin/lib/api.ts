@@ -20,7 +20,8 @@ export interface OrderItem {
   orderId: string;
   productVariantId: string;
   quantity: number;
-  price: number;
+  price: number; // Effective price at order time (sale or regular)
+  wasOnSale?: boolean; // Whether item was on sale at order time
 }
 
 export interface Order {
@@ -61,6 +62,49 @@ export interface QueryOrdersParams {
   status?: OrderStatus;
   startDate?: string;
   endDate?: string;
+}
+
+export interface Sale {
+  id: string;
+  productId: string;
+  salePrice: number;
+  startDate: string | null;
+  endDate: string | null;
+  status: "scheduled" | "active" | "expired" | "disabled";
+  isActive: boolean;
+  name: string | null;
+  description: string | null;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSaleDto {
+  productId: string;
+  salePrice: number;
+  startDate?: string;
+  endDate?: string;
+  name?: string;
+  description?: string;
+  priority?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateSaleDto {
+  salePrice?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  name?: string;
+  description?: string;
+  priority?: number;
+  isActive?: boolean;
+}
+
+export interface EffectivePriceResponse {
+  price: number;
+  salePrice: number | null;
+  isOnSale: boolean;
+  saleId?: string;
 }
 
 export class ApiError extends Error {
@@ -104,7 +148,10 @@ export interface Product {
   id: string;
   title: string;
   description: string | null;
-  price: number;
+  price: number; // Effective price (sale or regular)
+  regularPrice: number;
+  salePrice: number | null;
+  isOnSale: boolean;
   gstRate: number;
   gstAmount: number;
   priceExcludingGst: number;
@@ -289,6 +336,76 @@ export const adminApi = {
    */
   async deleteProduct(id: string): Promise<void> {
     return fetchApi<void>(`/products/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  /**
+   * Get active sale for a product
+   */
+  async getProductSale(productId: string): Promise<EffectivePriceResponse> {
+    return fetchApi<EffectivePriceResponse>(
+      `/admin/sales/product/${productId}`,
+    );
+  },
+
+  /**
+   * Get all sales with optional filters
+   */
+  async getSales(
+    productId?: string,
+    status?: "scheduled" | "active" | "expired" | "disabled",
+  ): Promise<Sale[]> {
+    const searchParams = new URLSearchParams();
+    if (productId) searchParams.append("productId", productId);
+    if (status) searchParams.append("status", status);
+
+    const query = searchParams.toString();
+    return fetchApi<Sale[]>(`/admin/sales${query ? `?${query}` : ""}`);
+  },
+
+  /**
+   * Get sale by ID
+   */
+  async getSale(id: string): Promise<Sale> {
+    return fetchApi<Sale>(`/admin/sales/${id}`);
+  },
+
+  /**
+   * Create a new sale
+   */
+  async createSale(data: CreateSaleDto): Promise<Sale> {
+    return fetchApi<Sale>("/admin/sales", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update a sale
+   */
+  async updateSale(id: string, data: UpdateSaleDto): Promise<Sale> {
+    return fetchApi<Sale>(`/admin/sales/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update sale status
+   */
+  async updateSaleStatus(id: string, isActive: boolean): Promise<Sale> {
+    return fetchApi<Sale>(`/admin/sales/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    });
+  },
+
+  /**
+   * Delete a sale
+   */
+  async deleteSale(id: string): Promise<{ message: string }> {
+    return fetchApi<{ message: string }>(`/admin/sales/${id}`, {
       method: "DELETE",
     });
   },

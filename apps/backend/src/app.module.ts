@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AddressAutocompleteModule } from "./modules/address-autocomplete/address-autocomplete.module";
 import { AdminModule } from "./modules/admin/admin.module";
@@ -10,10 +11,12 @@ import { InvoicesModule } from "./modules/invoices/invoices.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { SalesModule } from "./modules/sales/sales.module";
 import { ShippingModule } from "./modules/shipping/shipping.module";
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     AuthModule,
     CategoriesModule,
     ProductsModule,
@@ -25,6 +28,7 @@ import { ShippingModule } from "./modules/shipping/shipping.module";
     InvoicesModule,
     AddressAutocompleteModule,
     DiscountsModule,
+    SalesModule,
   ],
   controllers: [AppController],
 })

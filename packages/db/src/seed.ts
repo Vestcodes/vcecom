@@ -4,9 +4,10 @@
 import { resolve } from "node:path";
 import { config } from "dotenv";
 
-// Load from packages/db/.env first, then root .env (root takes precedence)
-config({ path: resolve(__dirname, "../.env") });
-config({ path: resolve(__dirname, "../../.env") });
+// Only load from root .env (when compiled, __dirname is packages/db/dist)
+// 3 levels up: dist -> db -> packages -> ecommerce (root)
+const rootEnvPath = resolve(__dirname, "../../../.env");
+config({ path: rootEnvPath });
 
 // Check DATABASE_URL before importing db (which throws if not set)
 if (!process.env.DATABASE_URL) {

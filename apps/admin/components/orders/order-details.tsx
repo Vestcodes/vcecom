@@ -160,7 +160,23 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">₹{item.price.toFixed(2)}</p>
+                        {item.wasOnSale ? (
+                          <div>
+                            <p className="font-medium text-destructive">
+                              ₹{item.price.toFixed(2)}
+                            </p>
+                            <Badge
+                              variant="destructive"
+                              className="text-xs mb-1"
+                            >
+                              SALE
+                            </Badge>
+                          </div>
+                        ) : (
+                          <p className="font-medium">
+                            ₹{item.price.toFixed(2)}
+                          </p>
+                        )}
                         <p className="text-sm text-gray-600">
                           Total: ₹{(item.price * item.quantity).toFixed(2)}
                         </p>

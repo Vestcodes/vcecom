@@ -25,6 +25,7 @@ import { calculateDiscount } from "../../common/utils/discount.utils";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
 import { CartsService } from "../carts/carts.service";
 import { DiscountsService } from "../discounts/discounts.service";
+import { SalesService } from "../sales/sales.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
 import {
@@ -43,6 +44,7 @@ export class OrdersService {
   constructor(
     private readonly cartsService: CartsService,
     private readonly discountsService: DiscountsService,
+    private readonly salesService: SalesService,
   ) {}
 
   /**
@@ -180,6 +182,7 @@ export class OrdersService {
         price: cartItems.price,
         variantInventory: productVariants.inventory,
         productGstRate: products.gstRate,
+        productId: products.id,
       })
       .from(cartItems)
       .innerJoin(
@@ -188,6 +191,13 @@ export class OrdersService {
       )
       .innerJoin(products, eq(productVariants.productId, products.id))
       .where(inArray(cartItems.id, cartItemIds));
+
+    // Get sale prices for products at order creation time (snapshot)
+    const productIds = [
+      ...new Set(cartItemsWithVariants.map((item) => item.productId)),
+    ];
+    const salePrices =
+      await this.salesService.getEffectivePricesForProducts(productIds);
 
     // Validate inventory
     for (const item of cartItemsWithVariants) {
@@ -207,9 +217,12 @@ export class OrdersService {
     let totalSgst = 0;
     let totalIgst = 0;
 
-    // Calculate subtotal and GST for each item
+    // Calculate subtotal and GST for each item using sale prices
     for (const item of cartItemsWithVariants) {
-      const itemSubtotal = item.price * item.quantity;
+      const sale = salePrices.get(item.productId);
+      // Use sale price if available, otherwise use cart item price
+      const effectivePrice = sale?.salePrice || item.price;
+      const itemSubtotal = effectivePrice * item.quantity;
       subtotal += itemSubtotal;
 
       // Calculate GST breakdown
@@ -333,9 +346,12 @@ export class OrdersService {
       }
     }
 
-    // Create order items
+    // Create order items (snapshot sale prices at order time)
     const orderItemsToInsert = cartItemsWithVariants.map((item) => {
-      const itemSubtotal = item.price * item.quantity;
+      const sale = salePrices.get(item.productId);
+      // Use sale price if available, otherwise use cart item price
+      const effectivePrice = sale?.salePrice || item.price;
+      const itemSubtotal = effectivePrice * item.quantity;
       const gstBreakdown = calculateGstBreakdown(
         itemSubtotal,
         item.productGstRate,
@@ -347,7 +363,7 @@ export class OrdersService {
         orderId: order.id,
         productVariantId: item.productVariantId,
         quantity: item.quantity,
-        price: item.price,
+        price: effectivePrice, // Store effective price (sale or regular)
         gstRate: item.productGstRate,
         gstAmount: gstBreakdown.totalGst,
       };

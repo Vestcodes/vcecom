@@ -14,6 +14,7 @@ export * from "./payments";
 export * from "./pincodes";
 export * from "./product-collections";
 export * from "./product-images";
+export * from "./product-sales";
 export * from "./product-tags";
 export * from "./product-variants";
 export * from "./products";

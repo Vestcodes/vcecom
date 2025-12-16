@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,9 @@ export function ProductForm({ product, onSubmit }: Props) {
 
   const gstRate = watch("gstRate");
   const price = watch("price");
+  const isOnSale = product?.isOnSale || false;
+  const salePrice = product?.salePrice;
+  const regularPrice = product?.regularPrice || product?.price || 0;
 
   const onFormSubmit = async (data: ProductFormData) => {
     const submitData: CreateProductDto | UpdateProductDto = {
@@ -150,6 +154,33 @@ export function ProductForm({ product, onSubmit }: Props) {
                 <p className="text-sm text-destructive">
                   {errors.price.message}
                 </p>
+              )}
+              {product && (
+                <div className="mt-2 space-y-1">
+                  {isOnSale && salePrice ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">
+                        Regular Price:
+                      </span>
+                      <span className="line-through">
+                        ₹{regularPrice.toFixed(2)}
+                      </span>
+                      <span className="text-destructive font-semibold">
+                        Sale: ₹{salePrice.toFixed(2)}
+                      </span>
+                      <Badge variant="destructive" className="text-xs">
+                        ON SALE
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Regular Price: ₹{regularPrice.toFixed(2)}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Manage sales in the Sales tab
+                  </p>
+                </div>
               )}
             </div>
 

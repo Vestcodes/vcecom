@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Edit, Plus, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -138,10 +139,34 @@ export function ProductList(_props: Props) {
                   {data.data.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">
-                        {product.title}
+                        <div className="flex items-center gap-2">
+                          {product.title}
+                          {product.isOnSale && (
+                            <Badge variant="destructive" className="text-xs">
+                              SALE
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        ₹{product.priceIncludingGst.toFixed(2)}
+                        <div className="flex flex-col">
+                          {product.isOnSale ? (
+                            <>
+                              <span className="font-semibold text-destructive">
+                                ₹{product.priceIncludingGst.toFixed(2)}
+                              </span>
+                              <span className="text-xs text-muted-foreground line-through">
+                                ₹
+                                {(
+                                  (product.regularPrice || product.price) *
+                                  (1 + product.gstRate / 100)
+                                ).toFixed(2)}
+                              </span>
+                            </>
+                          ) : (
+                            <span>₹{product.priceIncludingGst.toFixed(2)}</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <ProductStatusBadge status={product.status} />

@@ -21,10 +21,30 @@ export class ProductResponseDto {
   description: string | null;
 
   @ApiProperty({
-    description: "Product price in INR",
-    example: 2999.99,
+    description:
+      "Effective price (sale price if on sale, otherwise regular price)",
+    example: 1999.99,
   })
   price: number;
+
+  @ApiProperty({
+    description: "Regular price (original price)",
+    example: 2999.99,
+  })
+  regularPrice: number;
+
+  @ApiProperty({
+    description: "Sale price if product is on sale",
+    example: 1999.99,
+    nullable: true,
+  })
+  salePrice: number | null;
+
+  @ApiProperty({
+    description: "Whether product is currently on sale",
+    example: true,
+  })
+  isOnSale: boolean;
 
   @ApiProperty({
     description: "GST rate percentage",

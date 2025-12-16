@@ -34,6 +34,7 @@ import {
   isLikelySku,
   parseSearchQuery,
 } from "../../common/utils/search.utils";
+import { SalesService } from "../sales/sales.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { FilterProductsDto, SortField, SortOrder } from "./dto/filter.dto";
 import { QueryProductsDto } from "./dto/query-products.dto";
@@ -47,6 +48,7 @@ import { UpdateProductDto } from "./dto/update-product.dto";
 
 @Injectable()
 export class ProductsService {
+  constructor(private readonly salesService: SalesService) {}
   /**
    * Create a new product
    */
@@ -88,7 +90,13 @@ export class ProductsService {
       })
       .returning();
 
-    return this.enrichProductWithGst(newProduct);
+    const enriched = this.enrichProductWithGst(newProduct);
+    return {
+      ...enriched,
+      regularPrice: Number(newProduct.price.toFixed(2)),
+      salePrice: null,
+      isOnSale: false,
+    };
   }
 
   /**
@@ -239,8 +247,25 @@ export class ProductsService {
 
     const pagination = generatePaginationMetadata(Number(total), page, limit);
 
+    // Batch-load sale prices for all products
+    const productIds = allProducts.map((p) => p.id);
+    const salePrices =
+      await this.salesService.getEffectivePricesForProducts(productIds);
+
+    // Enrich products with sale information
+    const enrichedProducts = allProducts.map((product) => {
+      const sale = salePrices.get(product.id);
+      const effectivePrice = sale?.salePrice || product.price;
+      return {
+        ...this.enrichProductWithGst(product, effectivePrice),
+        regularPrice: Number(product.price.toFixed(2)),
+        salePrice: sale?.salePrice ? Number(sale.salePrice.toFixed(2)) : null,
+        isOnSale: !!sale?.salePrice,
+      };
+    });
+
     return {
-      data: allProducts.map((product) => this.enrichProductWithGst(product)),
+      data: enrichedProducts,
       total: pagination.total,
       page: pagination.page,
       limit: pagination.limit,
@@ -372,8 +397,25 @@ export class ProductsService {
 
     const pagination = generatePaginationMetadata(Number(total), page, limit);
 
+    // Batch-load sale prices for all products
+    const productIds = allProducts.map((p) => p.id);
+    const salePrices =
+      await this.salesService.getEffectivePricesForProducts(productIds);
+
+    // Enrich products with sale information
+    const enrichedProducts = allProducts.map((product) => {
+      const sale = salePrices.get(product.id);
+      const effectivePrice = sale?.salePrice || product.price;
+      return {
+        ...this.enrichProductWithGst(product, effectivePrice),
+        regularPrice: Number(product.price.toFixed(2)),
+        salePrice: sale?.salePrice ? Number(sale.salePrice.toFixed(2)) : null,
+        isOnSale: !!sale?.salePrice,
+      };
+    });
+
     return {
-      data: allProducts.map((product) => this.enrichProductWithGst(product)),
+      data: enrichedProducts,
       total: pagination.total,
       page: pagination.page,
       limit: pagination.limit,
@@ -397,7 +439,21 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return this.enrichProductWithGst(product);
+    // Get active sale price
+    const effectivePrice = await this.salesService.getEffectivePrice(id);
+    const salePrice = effectivePrice.salePrice;
+
+    const enriched = this.enrichProductWithGst(
+      product,
+      salePrice || product.price,
+    );
+
+    return {
+      ...enriched,
+      regularPrice: Number(product.price.toFixed(2)),
+      salePrice: salePrice ? Number(salePrice.toFixed(2)) : null,
+      isOnSale: effectivePrice.isOnSale,
+    };
   }
 
   /**
@@ -452,7 +508,21 @@ export class ProductsService {
       .where(eq(products.id, id))
       .returning();
 
-    return this.enrichProductWithGst(updated);
+    // Get active sale price for updated product
+    const effectivePrice = await this.salesService.getEffectivePrice(id);
+    const salePrice = effectivePrice.salePrice;
+
+    const enriched = this.enrichProductWithGst(
+      updated,
+      salePrice || updated.price,
+    );
+
+    return {
+      ...enriched,
+      regularPrice: Number(updated.price.toFixed(2)),
+      salePrice: salePrice ? Number(salePrice.toFixed(2)) : null,
+      isOnSale: effectivePrice.isOnSale,
+    };
   }
 
   /**
@@ -780,19 +850,25 @@ export class ProductsService {
   /**
    * Enrich product with GST calculations
    * @param product - Product from database
+   * @param effectivePrice - Effective price to use (sale price if on sale, otherwise regular price)
    * @returns Product with GST calculations added
    */
-  private enrichProductWithGst(product: typeof products.$inferSelect) {
-    const gstAmount = calculateGstAmount(product.price, product.gstRate);
+  private enrichProductWithGst(
+    product: typeof products.$inferSelect,
+    effectivePrice?: number,
+  ) {
+    const priceToUse = effectivePrice ?? product.price;
+    const gstAmount = calculateGstAmount(priceToUse, product.gstRate);
     const priceIncludingGst = calculatePriceWithGst(
-      product.price,
+      priceToUse,
       product.gstRate,
     );
 
     return {
       ...product,
+      price: Number(priceToUse.toFixed(2)), // Effective price (sale or regular)
       gstAmount: Number(gstAmount.toFixed(2)),
-      priceExcludingGst: Number(product.price.toFixed(2)),
+      priceExcludingGst: Number(priceToUse.toFixed(2)),
       priceIncludingGst: Number(priceIncludingGst.toFixed(2)),
       hsnCode: product.hsnCode || null,
     };

@@ -26,6 +26,19 @@ export class CartItemResponseDto {
   price: number;
 
   @ApiProperty({
+    description: "Current sale price if product is on sale",
+    example: 799.99,
+    nullable: true,
+  })
+  salePrice: number | null;
+
+  @ApiProperty({
+    description: "Regular price (original price)",
+    example: 999.99,
+  })
+  regularPrice: number;
+
+  @ApiProperty({
     description: "Creation timestamp",
     example: "2025-11-26T00:00:00.000Z",
   })

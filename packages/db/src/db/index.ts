@@ -45,6 +45,8 @@ export {
   gte,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
   lte,
   not,
   notInArray,
