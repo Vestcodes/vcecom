@@ -64,8 +64,7 @@ interface CreateProductWizardProps {
  */
 export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
   const createProductMutation = useAdminCreateProduct();
-  const { uploadImages, isUploading: isUploadingImages } =
-    useProductImageUpload();
+  const { uploadImages } = useProductImageUpload();
   const { createDefaultVariant, createVariants } = useProductVariantCreation();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -74,10 +73,6 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
   const [pendingVariants, setPendingVariants] = useState<PendingVariant[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tempProductId, setTempProductId] = useState<string | null>(null);
-
-  // Prevent form submission while images are uploading
-  const isFormDisabled =
-    isSubmitting || isUploadingImages || createProductMutation.isPending;
 
   const { data: optionTypes = [] } = useAdminProductVariantOptionTypes(
     tempProductId || "",
@@ -150,11 +145,6 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
 
   const handleSubmit = useCallback(
     async (data: CreateProductFormValues) => {
-      // Prevent submission if already uploading images
-      if (isUploadingImages) {
-        return;
-      }
-
       setIsSubmitting(true);
       try {
         const product = await createProductMutation.mutateAsync(
@@ -163,7 +153,6 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
 
         if (!product.id) {
           toast.error(WIZARD_MESSAGES.PRODUCT_CREATE_ERROR);
-          setIsSubmitting(false);
           return;
         }
 
@@ -205,7 +194,6 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
       createDefaultVariant,
       createVariants,
       onComplete,
-      isUploadingImages,
     ],
   );
 
@@ -235,11 +223,7 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
       <WizardStepIndicator steps={WIZARD_STEPS} currentStep={currentStep} />
 
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className="space-y-6"
-          noValidate
-        >
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           {currentStep === 1 && (
             <BasicInformationStep
               form={form as unknown as UseFormReturn<FieldValues>}
@@ -297,9 +281,8 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
           <WizardNavigation
             currentStep={currentStep}
             totalSteps={WIZARD_STEPS.length}
-            isSubmitting={isFormDisabled}
+            isSubmitting={isSubmitting}
             isCreatingProduct={createProductMutation.isPending}
-            isUploadingImages={isUploadingImages}
             tempProductId={tempProductId}
             variantMode={variantMode}
             pendingVariantsCount={pendingVariants.length}

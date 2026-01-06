@@ -18,23 +18,20 @@ export class StoreContextMiddleware implements NestMiddleware {
     try {
       // Extract store ID from header
       const storeIdHeader = req.headers["x-store-id"] as string | undefined;
-      let storeId =
+      const storeId =
         this.storeContextService.extractStoreIdFromHeader(storeIdHeader);
 
-      // If no store ID provided, automatically use default store
-      // This ensures all requests are scoped to a store (single-store setup)
+      // BETA FEATURE: Multi-store support is opt-in via X-Store-ID header
+      // If no store ID provided, skip store context (backward compatible)
+      // Existing functionality continues to work without store context
       if (!storeId) {
-        try {
-          storeId = await this.storeContextService.getDefaultStoreId();
-        } catch (_error) {
-          // If no store exists, continue without store context
-          // This allows the system to work even if no stores are set up yet
-          next();
-          return;
-        }
+        // No store context - backward compatible mode
+        // Services will use default store or handle null storeId gracefully
+        next();
+        return;
       }
 
-      // Validate store exists
+      // Validate store exists if header is provided
       const isValid = await this.storeContextService.validateStore(storeId);
       if (!isValid) {
         throw new BadRequestException(`Invalid store ID: ${storeId}`);

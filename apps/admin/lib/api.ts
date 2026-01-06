@@ -198,22 +198,6 @@ async function refreshAccessToken(): Promise<boolean> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
-      // Check if refresh token cookie exists before attempting refresh
-      if (typeof window !== "undefined") {
-        const hasRefreshToken = document.cookie.includes("admin_refresh_token");
-        if (!hasRefreshToken) {
-          // No refresh token - session truly expired
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes("/login")) {
-            const loginUrl = new URL("/login", window.location.origin);
-            loginUrl.searchParams.set("expired", "true");
-            loginUrl.searchParams.set("redirect", currentPath);
-            window.location.href = loginUrl.toString();
-          }
-          return false;
-        }
-      }
-
       const baseUrl = getApiBaseUrl();
       // Use the refresh endpoint - cookies are sent automatically
       const response = await fetch(`${baseUrl}/admin/auth/refresh`, {
@@ -225,25 +209,17 @@ async function refreshAccessToken(): Promise<boolean> {
       });
 
       if (!response.ok) {
-        // Check if refresh token is expired (401) vs other errors
-        const isTokenExpired = response.status === 401;
-
+        // Refresh failed - user needs to login again
         if (typeof window !== "undefined") {
           // Clear any stored tokens
           localStorage.removeItem("admin_access_token");
           localStorage.removeItem("admin_refresh_token");
 
-          // Only redirect with "expired" if token is actually expired (401)
-          // For other errors (network, 500, etc.), redirect without expired flag
+          // Redirect to login if not already there
           const currentPath = window.location.pathname;
           if (!currentPath.includes("/login")) {
             const loginUrl = new URL("/login", window.location.origin);
-            if (isTokenExpired) {
-              loginUrl.searchParams.set("expired", "true");
-            } else {
-              // Other error - show generic error message
-              loginUrl.searchParams.set("error", "refresh_failed");
-            }
+            loginUrl.searchParams.set("expired", "true");
             loginUrl.searchParams.set("redirect", currentPath);
             window.location.href = loginUrl.toString();
           }
@@ -265,12 +241,11 @@ async function refreshAccessToken(): Promise<boolean> {
       return true;
     } catch (error) {
       console.error("Token refresh error:", error);
-      // Network or other errors - don't treat as expired, just failed
       if (typeof window !== "undefined") {
         const currentPath = window.location.pathname;
         if (!currentPath.includes("/login")) {
           const loginUrl = new URL("/login", window.location.origin);
-          loginUrl.searchParams.set("error", "refresh_failed");
+          loginUrl.searchParams.set("expired", "true");
           loginUrl.searchParams.set("redirect", currentPath);
           window.location.href = loginUrl.toString();
         }

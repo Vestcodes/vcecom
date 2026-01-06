@@ -270,9 +270,9 @@ export function Sidebar({ className }: SidebarProps) {
               )}
             >
               {isCollapsed ? (
-                <Logo width={24} height={24} showText={false} />
+                <Logo width={32} height={32} showText={false} />
               ) : (
-                <Logo width={90} height={22} />
+                <Logo width={120} height={28} />
               )}
             </Link>
             <button

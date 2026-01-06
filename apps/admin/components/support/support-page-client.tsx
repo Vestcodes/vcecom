@@ -319,9 +319,7 @@ export function SupportPageClient() {
             <CardHeader className="p-4">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm">
-                  ISO 9001:2015 Certified
-                </CardTitle>
+                <CardTitle className="text-sm">ISO 9001:2015 Certified</CardTitle>
               </div>
               <CardDescription className="text-xs">
                 Quality management system certification
@@ -358,9 +356,7 @@ export function SupportPageClient() {
             <CardHeader className="p-4">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm">
-                  ISO 22301:2019 Certified
-                </CardTitle>
+                <CardTitle className="text-sm">ISO 22301:2019 Certified</CardTitle>
               </div>
               <CardDescription className="text-xs">
                 Business continuity management certification
@@ -397,9 +393,7 @@ export function SupportPageClient() {
             <CardHeader className="p-4">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm">
-                  SOC 2 Type 1 Certified
-                </CardTitle>
+                <CardTitle className="text-sm">SOC 2 Type 1 Certified</CardTitle>
               </div>
               <CardDescription className="text-xs">
                 Security and compliance certification

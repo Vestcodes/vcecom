@@ -70,15 +70,6 @@ export async function getAdminSession(): Promise<AdminSession | null> {
  */
 export async function refreshToken(): Promise<boolean> {
   try {
-    // Check if refresh token cookie exists before attempting refresh
-    if (typeof window !== "undefined") {
-      const hasRefreshToken = document.cookie.includes("admin_refresh_token");
-      if (!hasRefreshToken) {
-        // No refresh token - session truly expired
-        return false;
-      }
-    }
-
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const response = await fetch(`${baseUrl}${endpoints.auth.refresh}`, {
       method: "POST",
@@ -89,7 +80,6 @@ export async function refreshToken(): Promise<boolean> {
     });
 
     if (!response.ok) {
-      // Return false for any error (401 = token expired, others might be transient)
       return false;
     }
 
@@ -107,7 +97,6 @@ export async function refreshToken(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Token refresh error:", error);
-    // Network errors - don't treat as expired, might be transient
     return false;
   }
 }

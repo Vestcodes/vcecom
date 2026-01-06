@@ -109,47 +109,22 @@ export function SessionProvider({
     ) {
       if (sessionError.status === 401) {
         // Token expired - try to refresh
-        refreshToken()
-          .then((success) => {
-            if (!success) {
-              // Refresh failed - check if refresh token exists
-              // Only logout if refresh token is truly expired (not just network error)
-              if (typeof window !== "undefined") {
-                const hasRefreshToken = document.cookie.includes(
-                  "admin_refresh_token",
-                );
-                if (!hasRefreshToken) {
-                  // No refresh token - session truly expired, logout
-                  handleLogout();
-                } else {
-                  // Refresh token exists but refresh failed - might be transient
-                  // Retry once after a short delay
-                  setTimeout(() => {
-                    refreshToken().then((retrySuccess) => {
-                      if (retrySuccess) {
-                        refetch();
-                      } else {
-                        // Still failed - logout
-                        handleLogout();
-                      }
-                    });
-                  }, 2000);
-                }
-              } else {
-                handleLogout();
-              }
-            } else {
-              // Refresh successful - refetch session
-              refetch();
-            }
-          })
-          .catch(() => {
-            // Error during refresh - logout
+        refreshToken().then((success) => {
+          if (!success) {
+            // Refresh failed - logout
             handleLogout();
-          });
+          } else {
+            // Refresh successful - refetch session
+            refetch();
+          }
+        });
       }
     }
-  }, [sessionError, refetch, handleLogout]);
+  }, [
+    sessionError,
+    refetch, // Refresh failed - logout
+    handleLogout,
+  ]);
 
   // Set up proactive token refresh
   useEffect(() => {
@@ -165,46 +140,16 @@ export function SessionProvider({
     // Set up interval to refresh token proactively
     refreshIntervalRef.current = setInterval(async () => {
       try {
-        // Check if refresh token exists before attempting refresh
-        if (typeof window !== "undefined") {
-          const hasRefreshToken = document.cookie.includes(
-            "admin_refresh_token",
-          );
-          if (!hasRefreshToken) {
-            // No refresh token - session expired, logout
-            handleLogout();
-            return;
-          }
-        }
-
         const success = await refreshToken();
         if (!success) {
-          // Refresh failed - check if refresh token still exists
-          // Only logout if refresh token is truly expired
-          if (typeof window !== "undefined") {
-            const hasRefreshToken = document.cookie.includes(
-              "admin_refresh_token",
-            );
-            if (!hasRefreshToken) {
-              // Refresh token removed - session expired, logout
-              handleLogout();
-            } else {
-              // Refresh token exists but refresh failed - might be transient
-              // Log error but don't logout immediately
-              console.warn(
-                "Proactive token refresh failed, but refresh token still exists. Will retry on next interval.",
-              );
-            }
-          } else {
-            handleLogout();
-          }
+          // Refresh failed - logout
+          handleLogout();
         } else {
           // Refresh successful - refetch session to get updated data
           refetch();
         }
       } catch (error) {
         console.error("Proactive token refresh error:", error);
-        // Don't logout on error - might be transient network issue
       }
     }, TOKEN_REFRESH_INTERVAL);
 

@@ -27,6 +27,7 @@ import type { FilterDefinition } from "@/lib/types/filters";
 import type { Product, ProductQueryParams } from "@/lib/types/products";
 import { formatCurrency } from "@/lib/utils";
 import { PaginationControls } from "../common/pagination-controls";
+import { CreateProductSheet } from "./create-product-sheet";
 import { EmptyProductsState } from "./empty-products-state";
 
 /**
@@ -36,6 +37,7 @@ export function ProductsListClientRefactored() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const deleteProductMutation = useAdminDeleteProduct();
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
 
   const initialFilters = parseFiltersFromSearchParams(searchParams);
   const [productFilters, setProductFilters] =
@@ -204,54 +206,61 @@ export function ProductsListClientRefactored() {
   };
 
   return (
-    <ListLayout
-      title="Products"
-      description="Manage your product catalog"
-      searchPlaceholder="Search products..."
-      searchValue={productFilters.search || ""}
-      onSearchChange={(value) =>
-        setProductFilters((prev) => ({
-          ...prev,
-          search: value || undefined,
-          page: PRODUCT_DEFAULT_PAGE,
-        }))
-      }
-      createButtonLabel="Create Product"
-      onCreateClick={() => router.push("/products/create")}
-      filters={filterDefinitions}
-      filterValues={filterValues}
-      onFiltersChange={handleFiltersChange}
-      onClearFilters={handleClearFilters}
-      pagination={
-        <PaginationControls
-          paginationInfo={pagination.paginationInfo}
-          onPreviousPage={pagination.handlePreviousPage}
-          onNextPage={pagination.handleNextPage}
-          canGoPrevious={pagination.canGoPrevious}
-          canGoNext={pagination.canGoNext}
-          isLoading={isLoading}
-          itemLabel="products"
-        />
-      }
-    >
-      <QueryState
-        isLoading={isLoading}
-        error={error}
-        data={productsData}
-        loadingComponent={<ProductsTableSkeleton />}
-        emptyComponent={<EmptyProductsState />}
-        onRetry={() => window.location.reload()}
+    <>
+      <ListLayout
+        title="Products"
+        description="Manage your product catalog"
+        searchPlaceholder="Search products..."
+        searchValue={productFilters.search || ""}
+        onSearchChange={(value) =>
+          setProductFilters((prev) => ({
+            ...prev,
+            search: value || undefined,
+            page: PRODUCT_DEFAULT_PAGE,
+          }))
+        }
+        createButtonLabel="Create Product"
+        onCreateClick={() => setCreateSheetOpen(true)}
+        filters={filterDefinitions}
+        filterValues={filterValues}
+        onFiltersChange={handleFiltersChange}
+        onClearFilters={handleClearFilters}
+        pagination={
+          <PaginationControls
+            paginationInfo={pagination.paginationInfo}
+            onPreviousPage={pagination.handlePreviousPage}
+            onNextPage={pagination.handleNextPage}
+            canGoPrevious={pagination.canGoPrevious}
+            canGoNext={pagination.canGoNext}
+            isLoading={isLoading}
+            itemLabel="products"
+          />
+        }
       >
-        <DataTable<Product>
-          columns={columns}
-          data={productsData?.data || []}
-          rowActions={rowActions}
-          onRowClick={(product) => router.push(`/products/${product.id}`)}
-          emptyMessage="No products found"
+        <QueryState
           isLoading={isLoading}
-        />
-      </QueryState>
-    </ListLayout>
+          error={error}
+          data={productsData}
+          loadingComponent={<ProductsTableSkeleton />}
+          emptyComponent={<EmptyProductsState />}
+          onRetry={() => window.location.reload()}
+        >
+          <DataTable<Product>
+            columns={columns}
+            data={productsData?.data || []}
+            rowActions={rowActions}
+            onRowClick={(product) => router.push(`/products/${product.id}`)}
+            emptyMessage="No products found"
+            isLoading={isLoading}
+          />
+        </QueryState>
+      </ListLayout>
+
+      <CreateProductSheet
+        open={createSheetOpen}
+        onOpenChange={setCreateSheetOpen}
+      />
+    </>
   );
 }
 

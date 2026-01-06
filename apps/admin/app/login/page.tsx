@@ -33,7 +33,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
 import { setAuthToken } from "@/lib/auth";
+import { endpoints } from "@/lib/endpoints";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -44,21 +46,15 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginForm() {
-  const _router = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
-  // Check if redirected due to expired token or refresh failure
+  // Check if redirected due to expired token
   useEffect(() => {
-    const expired = searchParams.get("expired");
-    const error = searchParams.get("error");
-
-    if (expired === "true") {
+    if (searchParams.get("expired") === "true") {
       setError("Your session has expired. Please log in again.");
-      setErrorDialogOpen(true);
-    } else if (error === "refresh_failed") {
-      setError("Unable to refresh your session. Please log in again.");
       setErrorDialogOpen(true);
     }
   }, [searchParams]);
@@ -172,7 +168,7 @@ function LoginForm() {
         <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur-sm">
           <CardHeader className="space-y-3 text-center">
             <div className="flex justify-center">
-              <Logo width={100} height={26} />
+              <Logo width={140} height={36} />
             </div>
             <CardTitle className="text-xl font-semibold tracking-tight">
               Welcome To Admin Panel

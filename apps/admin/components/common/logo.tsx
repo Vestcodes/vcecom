@@ -12,8 +12,8 @@ interface LogoProps {
 
 export function Logo({
   className,
-  width = 90,
-  height = 24,
+  width = 120,
+  height = 32,
   showText = true,
 }: LogoProps) {
   // Use logo.png for both icon and full logo (light version for dark mode)

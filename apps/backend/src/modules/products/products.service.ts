@@ -25,6 +25,7 @@ import {
   productVariantOptionTypes,
   productVariants,
   sql,
+  stores,
   variantOptionTypes,
   variantOptionValues,
 } from "@vcecom/db";
@@ -35,7 +36,6 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../common/logging/logging.helper";
-import { StoreContextService } from "../../common/store-context/store-context.service";
 import { Trace } from "../../common/tracing/trace.decorator";
 import {
   calculateBasePrice,
@@ -86,8 +86,7 @@ import { MediaTransactionService } from "./services/media-transaction.service";
 export class ProductsService {
   constructor(
     private readonly storageService: StorageService,
-    @Inject(DB_TOKEN) private readonly db: Database,
-    private readonly storeContextService: StoreContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DIreadonly _storeContextService: StoreContextService,
     private readonly priceListService?: PriceListService,
     private readonly mediaTransactionService?: MediaTransactionService,
     private readonly mediaCacheInvalidationService?: MediaCacheInvalidationService,
@@ -142,19 +141,11 @@ export class ProductsService {
       slug = generateUniqueSlug(slug, slugList);
     }
 
-    // Get store ID from context (set by middleware)
-    const storeId = this.storeContextService.getStoreId();
-    if (!storeId) {
-      throw new BadRequestException(
-        "Store context is required. Please ensure a store is configured.",
-      );
-    }
-
     // Create product
     const [newProduct] = await this.db
       .insert(products)
       .values({
-        storeId,
+        storeId: await this.getDefaultStoreId(),
         title: createProductDto.title,
         description: createProductDto.description || null,
         price: createProductDto.price,
@@ -171,6 +162,7 @@ export class ProductsService {
 
     // Emit product created event
     if (this.productEventsService) {
+      const storeId = await this.getDefaultStoreId();
       await this.productEventsService.emitProductCreated({
         productId: newProduct.id,
         storeId,
@@ -207,6 +199,31 @@ export class ProductsService {
     }
 
     return this.enrichProductWithGst(newProduct);
+  }
+
+  /**
+   * Get default store ID helper
+   */
+  private async getDefaultStoreId(): Promise<string> {
+    const [defaultStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    const [firstStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    throw new Error("No store found");
   }
 
   /**
@@ -786,7 +803,7 @@ export class ProductsService {
 
     // Emit product updated event
     if (this.productEventsService) {
-      const storeId = this.storeContextService.getStoreId() || existing.storeId;
+      const storeId = await this.getDefaultStoreId();
       const changes: Record<string, unknown> = {};
       if (updateProductDto.title !== undefined)
         changes.title = updateProductDto.title;
@@ -878,7 +895,7 @@ export class ProductsService {
 
     // Emit product deleted event before deletion
     if (this.productEventsService) {
-      const storeId = this.storeContextService.getStoreId() || existing.storeId;
+      const storeId = await this.getDefaultStoreId();
       await this.productEventsService.emitProductDeleted({
         productId: existing.id,
         storeId,
