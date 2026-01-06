@@ -197,13 +197,35 @@ async function bootstrap() {
       "Environment variables validated successfully",
     );
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    } : { type: typeof error, value: String(error) };
+
+    // Log to console first to ensure visibility even if logger doesn't flush
+    console.error("=".repeat(80));
+    console.error("FATAL: Environment variable validation failed");
+    console.error("=".repeat(80));
+    console.error(errorMessage);
+    console.error("=".repeat(80));
+    console.error("Required environment variables:");
+    console.error("  - DATABASE_URL: PostgreSQL connection URL");
+    console.error("  - REDIS_URL: Redis connection URL");
+    console.error("  - JWT_SECRET: At least 32 characters, not 'change-me-in-production'");
+    console.error("=".repeat(80));
+
     earlyLogger.fatal(
       {
         ...createBootstrapContext("envValidationError"),
-        error: error instanceof Error ? error.message : String(error),
+        ...errorDetails,
       },
       "Environment variable validation failed - application cannot start",
     );
+
+    // Give time for logs to flush before exiting
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     process.exit(1);
   }
 
